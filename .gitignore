@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment (ignore parent venv)
+../Lib/
+../Scripts/
+../Include/
+../share/
+../pyvenv.cfg
+
+# Dataset
+dataset/
+
+# YOLO runs & weights
+runs/
+*.pt
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment files
+.env
+
+# VSCode
+.vscode/
+
+# Logs
+*.log

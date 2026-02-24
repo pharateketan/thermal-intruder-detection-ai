@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ThermalEye — Intruder Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050a0f;
+    --panel: #080f18;
+    --border: #0f2a3a;
+    --accent: #00e5ff;
+    --warn: #ff6b35;
+    --safe: #00ff9d;
+    --red: #ff2d55;
+    --yellow: #ffd60a;
+    --text: #a8c8d8;
+    --dim: #3a5568;
+    --glow: rgba(0, 229, 255, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image: 
+      radial-gradient(ellipse at 20% 50%, rgba(0, 40, 60, 0.3) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(0, 100, 120, 0.1) 0%, transparent 50%);
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,15,24,0.95);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo { display: flex; align-items: center; gap: 14px; }
+
+  .logo-icon {
+    width: 38px; height: 38px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 15px rgba(0,229,255,0.3);
+  }
+
+  .logo-icon::before {
+    content: '';
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #ff4500 0%, #ff8c00 40%, transparent 70%);
+    animation: pulse-hot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-hot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+  }
+
+  .logo-text h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-shadow: 0 0 20px rgba(0,229,255,0.5);
+  }
+
+  .logo-text span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 2px;
+  }
+
+  .status-bar { display: flex; gap: 24px; align-items: center; }
+
+  .status-item {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  .dot.green { background: var(--safe); box-shadow: 0 0 8px var(--safe); }
+  .dot.yellow { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .time-display {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+
+  .main-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    height: calc(100vh - 71px);
+  }
+
+  .sidebar-left {
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+  }
+
+  .panel-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(0,229,255,0.02);
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.06);
+  }
+
+  .upload-icon { font-size: 36px; margin-bottom: 10px; display: block; }
+
+  .upload-zone p { font-size: 13px; color: var(--dim); line-height: 1.5; }
+  .upload-zone .sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    margin-top: 6px;
+    opacity: 0.6;
+  }
+
+  input[type="file"] { display: none; }
+
+  .slider-wrapper { width: 100%; margin-bottom: 14px; }
+
+  .slider-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .config-label { font-size: 12px; color: var(--text); font-weight: 500; }
+
+  .slider-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .toggle-label { font-size: 13px; color: var(--text); }
+
+  .toggle {
+    width: 38px; height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+
+  .toggle.on { background: rgba(0,229,255,0.3); border: 1px solid var(--accent); }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--dim);
+    top: 3px; left: 3px;
+    transition: all 0.3s;
+  }
+
+  .toggle.on::after {
+    background: var(--accent);
+    left: 20px;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .btn-detect {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(0,229,255,0.05));
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 0 20px rgba(0,229,255,0.1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-detect:hover {
+    background: linear-gradient(135deg, rgba(0,229,255,0.25), rgba(0,229,255,0.1));
+    box-shadow: 0 0 30px rgba(0,229,255,0.25);
+  }
+
+  .btn-detect:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .viewport {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .viewport-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,15,24,0.8);
+  }
+
+  .viewport-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--dim);
+  }
+
+  .viewport-controls { display: flex; gap: 8px; }
+
+  .ctrl-btn {
+    padding: 5px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .ctrl-btn:hover, .ctrl-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .image-container {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #001a33;
+    background-image:
+      radial-gradient(circle at 30% 60%, rgba(255,69,0,0.05) 0%, transparent 40%),
+      radial-gradient(circle at 70% 30%, rgba(0,229,255,0.03) 0%, transparent 40%);
+  }
+
+  .image-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    opacity: 0.3;
+  }
+
+  .image-placeholder .big-icon { font-size: 64px; }
+
+  .image-placeholder p {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--dim);
+  }
+
+  .corner {
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: var(--accent);
+    border-style: solid;
+    opacity: 0.4;
+  }
+
+  .corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; }
+  .corner.tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+  .corner.bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; }
+  .corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+  #preview-canvas-wrapper {
+    position: relative;
+    max-width: 100%;
+    max-height: 100%;
+    display: none;
+  }
+
+  #preview-img {
+    max-width: 100%;
+    max-height: calc(100vh - 200px);
+    display: block;
+    border-radius: 4px;
+  }
+
+  #detection-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+
+  .viewport-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    background: rgba(8,15,24,0.8);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+  }
+
+  .footer-stat { display: flex; align-items: center; gap: 6px; }
+  .footer-stat span { color: var(--accent); }
+
+  .sidebar-right {
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sr-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .alert-banner {
+    background: rgba(255,45,85,0.08);
+    border: 1px solid rgba(255,45,85,0.3);
+    border-radius: 8px;
+    padding: 12px 14px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    display: none;
+  }
+
+  .alert-banner.show { display: flex; animation: alert-pulse 0.5s ease; }
+
+  @keyframes alert-pulse { 0% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
+  .alert-icon { font-size: 20px; animation: blink 0.6s infinite; }
+
+  .alert-text h3 {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    color: var(--red);
+    letter-spacing: 1px;
+  }
+
+  .alert-text p { font-size: 11px; color: rgba(255,45,85,0.7); margin-top: 2px; }
+
+  .detection-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    min-height: 0;
+  }
+
+  .detection-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    animation: slide-in 0.3s ease;
+  }
+
+  .detection-item.person { border: 1px solid rgba(255,45,85,0.3); background: rgba(255,45,85,0.06); }
+  .detection-item.vehicle { border: 1px solid rgba(255,214,10,0.3); background: rgba(255,214,10,0.04); }
+  .detection-item.bicycle { border: 1px solid rgba(0,229,255,0.3); background: rgba(0,229,255,0.04); }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .det-class-icon { font-size: 20px; }
+  .det-info { flex: 1; }
+
+  .det-class {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .det-class.person { color: var(--red); }
+  .det-class.vehicle { color: var(--yellow); }
+  .det-class.bicycle { color: var(--accent); }
+
+  .det-conf { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dim); margin-top: 2px; }
+  .det-conf span { color: var(--safe); font-weight: bold; }
+
+  .det-coords {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--dim);
+    text-align: right;
+    line-height: 1.6;
+  }
+
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .metric-card {
+    background: rgba(0,229,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .metric-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    text-shadow: 0 0 15px rgba(0,229,255,0.4);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .metric-val.warn { color: var(--warn); text-shadow: 0 0 15px rgba(255,107,53,0.4); }
+  .metric-val.danger { color: var(--red); text-shadow: 0 0 15px rgba(255,45,85,0.4); }
+
+  .metric-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  .conf-bar-wrapper { margin-bottom: 8px; }
+
+  .conf-bar-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+
+  .conf-bar-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .conf-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.8s ease;
+    width: 0%;
+  }
+
+  .conf-bar-fill.person { background: linear-gradient(90deg, var(--red), #ff6b88); }
+  .conf-bar-fill.vehicle { background: linear-gradient(90deg, var(--yellow), #ffe566); }
+  .conf-bar-fill.bicycle { background: linear-gradient(90deg, var(--accent), #66f0ff); }
+
+  .log-area {
+    height: 130px;
+    overflow-y: auto;
+    padding: 10px 16px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    line-height: 1.8;
+  }
+
+  .log-entry { color: var(--dim); }
+  .log-entry.success { color: var(--safe); }
+  .log-entry.warn { color: var(--warn); }
+  .log-entry.error { color: var(--red); }
+  .log-entry.info { color: var(--accent); }
+
+  .loading-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(5,10,15,0.85);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    display: none;
+    z-index: 50;
+  }
+
+  .loading-overlay.show { display: flex; }
+
+  .spinner {
+    width: 50px; height: 50px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+
+  .empty-detections {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 120px;
+    gap: 10px;
+    opacity: 0.3;
+  }
+
+  .empty-detections .e-icon { font-size: 32px; }
+
+  .empty-detections p {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--dim);
+  }
+
+  .class-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+
+  .class-badge.person { background: rgba(255,45,85,0.2); color: var(--red); border: 1px solid rgba(255,45,85,0.3); }
+  .class-badge.vehicle { background: rgba(255,214,10,0.15); color: var(--yellow); border: 1px solid rgba(255,214,10,0.25); }
+  .class-badge.bicycle { background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.2); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <div class="logo-text">
+      <h1>THERMALEYE</h1>
+      <span>THERMAL INTRUDER DETECTION SYSTEM v2.0</span>
+    </div>
+  </div>
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="dot green"></div>
+      <span>MODEL READY</span>
+    </div>
+    <div class="status-item">
+      <div class="dot yellow"></div>
+      <span>YOLOv8s · FLIR ADAS</span>
+    </div>
+    <div class="status-item">
+      <div class="dot green"></div>
+      <span>THERMAL IR</span>
+    </div>
+    <div class="time-display" id="clock">00:00:00</div>
+  </div>
+</header>
+
+<div class="main-layout">
+
+  <!-- LEFT SIDEBAR -->
+  <div class="sidebar-left">
+
+    <div>
+      <div class="panel-title">▸ INPUT SOURCE</div>
+      <label for="image-input">
+        <div class="upload-zone" id="drop-zone">
+          <span class="upload-icon">📡</span>
+          <p>Drop thermal image or video frame</p>
+          <p class="sub">SUPPORTED: JPG · PNG · BMP · TIFF</p>
+        </div>
+      </label>
+      <input type="file" id="image-input" accept="image/*">
+    </div>
+
+    <div class="card">
+      <div class="panel-title">▸ MODEL CONFIG</div>
+      <div class="slider-wrapper">
+        <div class="slider-top">
+          <span class="config-label">Confidence Threshold</span>
+          <span class="slider-val" id="conf-val">0.45</span>
+        </div>
+        <input type="range" id="conf-slider" min="0.1" max="0.95" step="0.05" value="0.45">
+      </div>
+      <div class="slider-wrapper">
+        <div class="slider-top">
+          <span class="config-label">IoU Threshold (NMS)</span>
+          <span class="slider-val" id="iou-val">0.50</span>
+        </div>
+        <input type="range" id="iou-slider" min="0.1" max="0.9" step="0.05" value="0.50">
+      </div>
+      <div class="slider-wrapper">
+        <div class="slider-top">
+          <span class="config-label">Max Detections</span>
+          <span class="slider-val" id="maxdet-val">100</span>
+        </div>
+        <input type="range" id="maxdet-slider" min="10" max="300" step="10" value="100">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="panel-title">▸ DISPLAY OPTIONS</div>
+      <div class="toggle-row">
+        <span class="toggle-label">Bounding Boxes</span>
+        <div class="toggle on" id="toggle-bbox" onclick="toggleSetting(this)"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Confidence Labels</span>
+        <div class="toggle on" id="toggle-labels" onclick="toggleSetting(this)"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Target Tracking ID</span>
+        <div class="toggle" id="toggle-track" onclick="toggleSetting(this)"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="panel-title">▸ ACTIVE CLASSES</div>
+      <div class="toggle-row">
+        <span class="toggle-label">🔴 <span class="class-badge person">PERSON</span></span>
+        <div class="toggle on" id="toggle-person" onclick="toggleSetting(this)"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">🔵 <span class="class-badge bicycle">BICYCLE</span></span>
+        <div class="toggle on" id="toggle-bicycle" onclick="toggleSetting(this)"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">🟡 <span class="class-badge vehicle">VEHICLE</span></span>
+        <div class="toggle on" id="toggle-vehicle" onclick="toggleSetting(this)"></div>
+      </div>
+    </div>
+
+    <button class="btn-detect" id="detect-btn" onclick="runDetection()">
+      ⚡ RUN DETECTION
+    </button>
+
+  </div>
+
+  <!-- CENTER -->
+  <div class="viewport">
+    <div class="viewport-header">
+      <span class="viewport-title">▸ THERMAL FEED — ANALYSIS VIEW</span>
+      <div class="viewport-controls">
+        <button class="ctrl-btn active" id="btn-original" onclick="setView('original')">ORIGINAL</button>
+        <button class="ctrl-btn" id="btn-annotated" onclick="setView('annotated')">ANNOTATED</button>
+        <button class="ctrl-btn" id="btn-export" onclick="exportResult()">↓ EXPORT</button>
+      </div>
+    </div>
+
+    <div class="image-container" id="image-container">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+
+      <div class="image-placeholder" id="placeholder">
+        <span class="big-icon">🛸</span>
+        <p>AWAITING THERMAL INPUT</p>
+      </div>
+
+      <div id="preview-canvas-wrapper">
+        <img id="preview-img" alt="thermal image">
+        <canvas id="detection-canvas"></canvas>
+      </div>
+
+      <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">ANALYZING THERMAL DATA...</div>
+      </div>
+    </div>
+
+    <div class="viewport-footer">
+      <div class="footer-stat">RES: <span id="img-res">—</span></div>
+      <div class="footer-stat">DETECTIONS: <span id="det-count">0</span></div>
+      <div class="footer-stat">INFERENCE: <span id="inference-time">—</span></div>
+      <div class="footer-stat">MODEL: <span>YOLOv8s · TRANSFER</span></div>
+      <div class="footer-stat">DATASET: <span>FLIR ADAS</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <div class="sidebar-right">
+
+    <div class="sr-section">
+      <div class="panel-title">▸ THREAT ASSESSMENT</div>
+      <div class="alert-banner" id="alert-banner">
+        <span class="alert-icon">⚠️</span>
+        <div class="alert-text">
+          <h3>INTRUDER DETECTED</h3>
+          <p id="alert-detail">Analyzing targets...</p>
+        </div>
+      </div>
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-val danger" id="metric-persons">0</div>
+          <div class="metric-label">PERSONS</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val warn" id="metric-vehicles">0</div>
+          <div class="metric-label">VEHICLES</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val" id="metric-bicycles">0</div>
+          <div class="metric-label">BICYCLES</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val" id="metric-total">0</div>
+          <div class="metric-label">TOTAL</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sr-section">
+      <div class="panel-title">▸ CLASS CONFIDENCE</div>
+      <div class="conf-bar-wrapper">
+        <div class="conf-bar-header">
+          <span>Person</span>
+          <span id="conf-person-val" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--red)">—</span>
+        </div>
+        <div class="conf-bar-track"><div class="conf-bar-fill person" id="conf-person-bar"></div></div>
+      </div>
+      <div class="conf-bar-wrapper">
+        <div class="conf-bar-header">
+          <span>Vehicle</span>
+          <span id="conf-vehicle-val" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--yellow)">—</span>
+        </div>
+        <div class="conf-bar-track"><div class="conf-bar-fill vehicle" id="conf-vehicle-bar"></div></div>
+      </div>
+      <div class="conf-bar-wrapper">
+        <div class="conf-bar-header">
+          <span>Bicycle</span>
+          <span id="conf-bicycle-val" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--accent)">—</span>
+        </div>
+        <div class="conf-bar-track"><div class="conf-bar-fill bicycle" id="conf-bicycle-bar"></div></div>
+      </div>
+    </div>
+
+    <div class="sr-section" style="padding-bottom:8px;">
+      <div class="panel-title" style="margin-bottom:0">▸ DETECTED TARGETS</div>
+    </div>
+
+    <div class="detection-list" id="detection-list">
+      <div class="empty-detections">
+        <span class="e-icon">🎯</span>
+        <p>NO TARGETS ACQUIRED</p>
+      </div>
+    </div>
+
+    <div style="border-top: 1px solid var(--border); padding: 10px 16px 6px;">
+      <div class="panel-title" style="margin-bottom:0">▸ SYSTEM LOG</div>
+    </div>
+    <div class="log-area" id="log-area">
+      <div class="log-entry info">[BOOT] ThermalEye system initialized</div>
+      <div class="log-entry success">[OK] YOLOv8n model weights loaded</div>
+      <div class="log-entry success">[OK] HIT-UAV class map ready (5 classes)</div>
+      <div class="log-entry">[SYS] Awaiting thermal image input...</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let currentImage = null;
+let currentFile = null;
+let detections = [];
+let imgWidth = 0, imgHeight = 0;
+let showBbox = true, showLabels = true, currentView = 'original';
+
+const CLASSES = {
+  0: { name: 'Person',  icon: '🚶', type: 'person',  color: '#ff2d55' },
+  1: { name: 'Bicycle', icon: '🚲', type: 'bicycle', color: '#00e5ff' },
+  2: { name: 'Vehicle', icon: '🚗', type: 'vehicle', color: '#ffd60a' },
+};
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+}
+setInterval(updateClock, 1000); updateClock();
+
+document.getElementById('conf-slider').addEventListener('input', function() {
+  document.getElementById('conf-val').textContent = parseFloat(this.value).toFixed(2);
+});
+document.getElementById('iou-slider').addEventListener('input', function() {
+  document.getElementById('iou-val').textContent = parseFloat(this.value).toFixed(2);
+});
+document.getElementById('maxdet-slider').addEventListener('input', function() {
+  document.getElementById('maxdet-val').textContent = this.value;
+});
+
+function toggleSetting(el) {
+  el.classList.toggle('on');
+  if (el.id === 'toggle-bbox') showBbox = el.classList.contains('on');
+  if (el.id === 'toggle-labels') showLabels = el.classList.contains('on');
+  if (detections.length > 0) redrawCanvas();
+}
+
+const dropZone = document.getElementById('drop-zone');
+const imageInput = document.getElementById('image-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadImage(f);
+});
+imageInput.addEventListener('change', e => { if (e.target.files[0]) loadImage(e.target.files[0]); });
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    currentImage = e.target.result;
+    const img = document.getElementById('preview-img');
+    img.src = currentImage;
+    img.onload = () => {
+      imgWidth = img.naturalWidth;
+      imgHeight = img.naturalHeight;
+      document.getElementById('img-res').textContent = `${imgWidth}×${imgHeight}`;
+      document.getElementById('placeholder').style.display = 'none';
+      document.getElementById('preview-canvas-wrapper').style.display = 'block';
+      detections = [];
+      clearDetectionsUI();
+      redrawCanvas();
+      log(`[INPUT] ${file.name} loaded (${imgWidth}×${imgHeight})`, 'info');
+    };
+  };
+  currentFile = file;
+  reader.readAsDataURL(file);
+}
+
+async function runDetection() {
+  if (!currentImage || !currentFile) { log('[ERR] No image loaded', 'error'); return; }
+
+  document.getElementById('loading-overlay').classList.add('show');
+  document.getElementById('detect-btn').disabled = true;
+  const conf = parseFloat(document.getElementById('conf-slider').value);
+  const iou  = document.getElementById('iou-slider').value;
+  const maxDet = document.getElementById('maxdet-slider').value;
+  log('[RUN] Sending to ThermalEye API...', 'info');
+  log(`[CFG] Conf:${conf.toFixed(2)} IoU:${iou} Max:${maxDet}`, '');
+
+  try {
+    const formData = new FormData();
+    formData.append('file', currentFile);
+    const data = await callBackend(formData);
+
+    document.getElementById('inference-time').textContent = `${data.inference_ms.toFixed(0)}ms`;
+    detections = apiToDetections(data);
+    updateDetectionUI();
+    redrawCanvas();
+    log(`[DONE] ${detections.length} target(s) | ${data.inference_ms.toFixed(0)}ms`, 'success');
+    if (data.alert) log(`[⚠] ${data.alert_message}`, 'warn');
+    else log('[CLEAR] Area clear — no threats detected', 'success');
+  } catch(err) {
+    log(`[ERR] ${err.message}`, 'error');
+    if (err.message.includes('fetch')) {
+      log('[HINT] Is the backend running? Run: uvicorn app.main:app --reload', 'warn');
+    }
+  } finally {
+    document.getElementById('loading-overlay').classList.remove('show');
+    document.getElementById('detect-btn').disabled = false;
+  }
+}
+
+// ---- REAL BACKEND CALL ----
+const API_BASE = 'http://localhost:8001/api';
+
+async function callBackend(formData) {
+  const conf = document.getElementById('conf-slider').value;
+  const iou  = document.getElementById('iou-slider').value;
+  const maxDet = document.getElementById('maxdet-slider').value;
+  const returnAnnotated = document.getElementById('toggle-bbox').classList.contains('on');
+
+  // Build class filter from active toggles
+  const classFilter = [];
+  if (document.getElementById('toggle-person').classList.contains('on'))  classFilter.push(0);
+  if (document.getElementById('toggle-bicycle').classList.contains('on')) classFilter.push(1);
+  if (document.getElementById('toggle-vehicle').classList.contains('on')) classFilter.push(2);
+
+  const params = new URLSearchParams({
+    conf, iou, max_det: maxDet,
+    return_annotated: returnAnnotated,
+    ...(classFilter.length < 4 ? { classes: classFilter.join(',') } : {})
+  });
+
+  const res = await fetch(`${API_BASE}/detect?${params}`, {
+    method: 'POST', body: formData
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+function apiToDetections(data) {
+  // Convert backend DetectResponse → internal detection format
+  return data.detections.map(d => ({
+    id: d.id,
+    classId: d.class_id,
+    conf: d.confidence,
+    x1: d.bbox.x1 / data.image_width,
+    y1: d.bbox.y1 / data.image_height,
+    x2: d.bbox.x2 / data.image_width,
+    y2: d.bbox.y2 / data.image_height,
+  }));
+}
+
+function redrawCanvas() {
+  const img = document.getElementById('preview-img');
+  const canvas = document.getElementById('detection-canvas');
+  const dW = img.offsetWidth, dH = img.offsetHeight;
+  canvas.width = dW; canvas.height = dH;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, dW, dH);
+  if (!showBbox || currentView === 'original') return;
+
+  const trackOn = document.getElementById('toggle-track').classList.contains('on');
+  const personOn = document.getElementById('toggle-person').classList.contains('on');
+  const vehicleOn = document.getElementById('toggle-vehicle').classList.contains('on');
+  const bicycleOn = document.getElementById('toggle-bicycle').classList.contains('on');
+
+  detections.forEach(det => {
+    const cls = CLASSES[det.classId]; if (!cls) return;
+    if (cls.type === 'person' && !personOn) return;
+    if (cls.type === 'vehicle' && !vehicleOn) return;
+    if (cls.type === 'bicycle' && !bicycleOn) return;
+
+    const x = det.x1 * dW, y = det.y1 * dH;
+    const w = (det.x2 - det.x1) * dW, h = (det.y2 - det.y1) * dH;
+
+    ctx.shadowColor = cls.color; ctx.shadowBlur = 12;
+    ctx.strokeStyle = cls.color; ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+
+    const cs = 10; ctx.lineWidth = 3;
+    [[x,y+cs,x,y,x+cs,y],[x+w-cs,y,x+w,y,x+w,y+cs],
+     [x,y+h-cs,x,y+h,x+cs,y+h],[x+w-cs,y+h,x+w,y+h,x+w,y+h-cs]].forEach(pts => {
+      ctx.beginPath(); ctx.moveTo(pts[0],pts[1]); ctx.lineTo(pts[2],pts[3]); ctx.lineTo(pts[4],pts[5]); ctx.stroke();
+    });
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = cls.color + '15';
+    ctx.fillRect(x, y, w, h);
+
+    if (showLabels) {
+      const parts = [];
+      if (trackOn) parts.push('#'+det.id);
+      parts.push(cls.name.toUpperCase());
+      parts.push((det.conf*100).toFixed(1)+'%');
+      const label = parts.join(' ');
+      ctx.font = 'bold 10px "Share Tech Mono"';
+      const tw = ctx.measureText(label).width;
+      const ly = y > 20 ? y - 6 : y + h + 16;
+      ctx.fillStyle = cls.color + 'dd';
+      ctx.fillRect(x-2, ly-12, tw+8, 16);
+      ctx.fillStyle = '#000'; ctx.shadowBlur = 0;
+      ctx.fillText(label, x+2, ly);
+    }
+  });
+}
+
+function updateDetectionUI() {
+  let p=0,v=0,b=0;
+  const conf = { person:[], vehicle:[], bicycle:[] };
+  detections.forEach(d => {
+    const cls = CLASSES[d.classId]; if (!cls) return;
+    if (cls.type==='person') { p++; conf.person.push(d.conf); }
+    else if (cls.type==='vehicle') { v++; conf.vehicle.push(d.conf); }
+    else { b++; conf.bicycle.push(d.conf); }
+  });
+  document.getElementById('metric-persons').textContent = p;
+  document.getElementById('metric-vehicles').textContent = v;
+  document.getElementById('metric-bicycles').textContent = b;
+  document.getElementById('metric-total').textContent = detections.length;
+  document.getElementById('det-count').textContent = detections.length;
+
+  const setBar = (type, valId, barId) => {
+    const vals = conf[type];
+    const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+    document.getElementById(valId).textContent = vals.length ? (avg*100).toFixed(1)+'%' : '—';
+    document.getElementById(barId).style.width = (avg*100)+'%';
+  };
+  setBar('person','conf-person-val','conf-person-bar');
+  setBar('vehicle','conf-vehicle-val','conf-vehicle-bar');
+  setBar('bicycle','conf-bicycle-val','conf-bicycle-bar');
+
+  const ab = document.getElementById('alert-banner');
+  if (detections.length > 0) {
+    ab.classList.add('show');
+    const parts = [];
+    if (p) parts.push(p+' person(s)');
+    if (v) parts.push(v+' vehicle(s)');
+    if (b) parts.push(b+' bicycle(s)');
+    document.getElementById('alert-detail').textContent = parts.join(', ') + ' in frame';
+  } else { ab.classList.remove('show'); }
+
+  const list = document.getElementById('detection-list');
+  if (!detections.length) {
+    list.innerHTML = '<div class="empty-detections"><span class="e-icon">🎯</span><p>NO TARGETS ACQUIRED</p></div>';
+    return;
+  }
+  list.innerHTML = detections.map(det => {
+    const cls = CLASSES[det.classId];
+    const x = (det.x1*imgWidth).toFixed(0), y = (det.y1*imgHeight).toFixed(0);
+    const w = ((det.x2-det.x1)*imgWidth).toFixed(0), h = ((det.y2-det.y1)*imgHeight).toFixed(0);
+    return `<div class="detection-item ${cls.type}">
+      <span class="det-class-icon">${cls.icon}</span>
+      <div class="det-info">
+        <div class="det-class ${cls.type}">${cls.name.toUpperCase()}</div>
+        <div class="det-conf">CONF: <span>${(det.conf*100).toFixed(1)}%</span></div>
+      </div>
+      <div class="det-coords">x:${x} y:${y}<br>w:${w} h:${h}</div>
+    </div>`;
+  }).join('');
+}
+
+function clearDetectionsUI() {
+  ['metric-persons','metric-vehicles','metric-bicycles','metric-total'].forEach(id => document.getElementById(id).textContent='0');
+  document.getElementById('det-count').textContent='0';
+  ['conf-person-bar','conf-vehicle-bar','conf-bicycle-bar'].forEach(id => document.getElementById(id).style.width='0%');
+  ['conf-person-val','conf-vehicle-val','conf-bicycle-val'].forEach(id => document.getElementById(id).textContent='—');
+  document.getElementById('alert-banner').classList.remove('show');
+  document.getElementById('inference-time').textContent='—';
+  document.getElementById('detection-list').innerHTML='<div class="empty-detections"><span class="e-icon">🎯</span><p>NO TARGETS ACQUIRED</p></div>';
+}
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('btn-original').classList.toggle('active', view==='original');
+  document.getElementById('btn-annotated').classList.toggle('active', view==='annotated');
+  redrawCanvas();
+}
+
+function exportResult() {
+  if (!currentImage) return;
+  const img = document.getElementById('preview-img');
+  const ec = document.createElement('canvas');
+  ec.width = img.naturalWidth; ec.height = img.naturalHeight;
+  const ctx = ec.getContext('2d');
+  ctx.drawImage(img,0,0);
+  const dc = document.getElementById('detection-canvas');
+  if (dc.width>0) ctx.drawImage(dc,0,0,img.naturalWidth,img.naturalHeight);
+  const a = document.createElement('a');
+  a.download = `thermaleye_${Date.now()}.png`;
+  a.href = ec.toDataURL('image/png');
+  a.click();
+  log('[EXPORT] Result saved as PNG','success');
+}
+
+function log(msg, type='') {
+  const area = document.getElementById('log-area');
+  const el = document.createElement('div');
+  el.className = 'log-entry '+type;
+  el.textContent = new Date().toTimeString().slice(0,8)+' '+msg;
+  area.appendChild(el);
+  area.scrollTop = area.scrollHeight;
+}
+
+window.addEventListener('resize', () => { if(detections.length>0) redrawCanvas(); });
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && currentImage) runDetection();
+});
+
+setTimeout(() => log('[SYS] Press ENTER or click RUN DETECTION to analyze',''), 500);
+</script>
+</body>
+</html>
