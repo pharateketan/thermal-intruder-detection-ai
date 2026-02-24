@@ -14,11 +14,33 @@ This project detects:
 - PyTorch
 - HTML Frontend
 
+## Dataset
+- FLIR-ADAS-v2
+
 ## Project Structure
 - backend/ → Detection API and model management
 - frontend/ → Simple UI
 - tests/ → Backend test cases
 
+## Folder Structure
+```text
+thermal_intruder_ai/
+│
+├── backend/
+│ ├── app/
+│ │ ├── api/
+│ │ ├── core/
+│ │ ├── models/
+│ │ ├── utils/
+│ │ └── main.py
+│ ├── tests/
+│ └── requirements.txt
+│
+├── frontend/
+│ └── thermal_intruder_ui.html
+│
+└── .gitignore
+```
 ## How To Run
 
 ### 1️) Install Dependencies
@@ -28,7 +50,7 @@ pip install -r backend/requirements.txt
 
 ### 2) Run Backend
 ```bash
-pip install -r requirements.txt
+uvicorn backend.app.main:app --reload
 ```
 
 ### 3) Open Frontend
@@ -36,6 +58,4 @@ pip install -r requirements.txt
 Then push again:
 
 ```powershell
-git add .
-git commit -m "Added README"
-git push
+frontend/thermal_intruder_ui.html
